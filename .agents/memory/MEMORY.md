@@ -1,0 +1,1 @@
+- [Time registration policy](time-registration.md) — fixed workday split and approval-gated overtime rules.

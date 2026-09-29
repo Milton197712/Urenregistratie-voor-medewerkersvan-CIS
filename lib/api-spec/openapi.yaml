@@ -10,6 +10,12 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: time
+    description: Time registration operations
+  - name: employees
+    description: Employee operations
+  - name: projects
+    description: Project operations
 paths:
   /healthz:
     get:
@@ -24,6 +30,167 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /dashboard:
+    get:
+      operationId: getDashboard
+      tags: [time]
+      summary: Get dashboard summary
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
+  /employees:
+    get:
+      operationId: listEmployees
+      tags: [employees]
+      summary: List employees
+      responses:
+        "200":
+          description: Employees
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Employee"
+  /projects:
+    get:
+      operationId: listProjects
+      tags: [projects]
+      summary: List active projects
+      responses:
+        "200":
+          description: Projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Project"
+  /time-entries:
+    get:
+      operationId: listTimeEntries
+      tags: [time]
+      summary: List time entries
+      parameters:
+        - name: date
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: employeeId
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Time entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TimeEntry"
+    post:
+      operationId: createTimeEntry
+      tags: [time]
+      summary: Create a time entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TimeEntryInput"
+      responses:
+        "201":
+          description: Created entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TimeEntry"
+  /time-entries/{id}:
+    patch:
+      operationId: updateTimeEntry
+      tags: [time]
+      summary: Correct a time entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TimeEntryUpdate"
+      responses:
+        "200":
+          description: Updated entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TimeEntry"
+  /overtime-requests:
+    get:
+      operationId: listOvertimeRequests
+      tags: [time]
+      summary: List overtime requests
+      responses:
+        "200":
+          description: Overtime requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OvertimeRequest"
+    post:
+      operationId: createOvertimeRequest
+      tags: [time]
+      summary: Request permission to work past a cutoff
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OvertimeRequestInput"
+      responses:
+        "201":
+          description: Created request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OvertimeRequest"
+  /overtime-requests/{id}/decision:
+    patch:
+      operationId: decideOvertimeRequest
+      tags: [time]
+      summary: Approve or reject an overtime request
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OvertimeDecision"
+      responses:
+        "200":
+          description: Decided request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OvertimeRequest"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +200,111 @@ components:
           type: string
       required:
         - status
+    Employee:
+      type: object
+      required: [id, name, role, initials, department]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        role: { type: string }
+        initials: { type: string }
+        department: { type: string }
+    TimeEntry:
+      type: object
+      required: [id, employeeId, employeeName, date, startTime, breakStart, breakEnd, endTime, status, totalHours, projectId, projectName]
+      properties:
+        id: { type: integer }
+        employeeId: { type: integer }
+        employeeName: { type: string }
+        projectId: { type: ["integer", "null"] }
+        projectName: { type: ["string", "null"] }
+        date: { type: string }
+        startTime: { type: string }
+        breakStart: { type: ["string", "null"] }
+        breakEnd: { type: ["string", "null"] }
+        endTime: { type: ["string", "null"] }
+        status: { type: string, enum: [open, complete, corrected, pending] }
+        totalHours: { type: number }
+        note: { type: ["string", "null"] }
+        autoClocked: { type: boolean }
+    TimeEntryInput:
+      type: object
+      required: [employeeId, date, action]
+      properties:
+        employeeId: { type: integer }
+        projectId: { type: integer }
+        date: { type: string }
+        action: { type: string, enum: [clock_in, break_start, break_end, clock_out] }
+        time: { type: string }
+        note: { type: string }
+    TimeEntryUpdate:
+      type: object
+      properties:
+        projectId: { type: ["integer", "null"] }
+        startTime: { type: string }
+        breakStart: { type: ["string", "null"] }
+        breakEnd: { type: ["string", "null"] }
+        endTime: { type: ["string", "null"] }
+        note: { type: string }
+    OvertimeRequest:
+      type: object
+      required: [id, employeeId, employeeName, date, cutoff, requestedUntil, reason, status, createdAt]
+      properties:
+        id: { type: integer }
+        employeeId: { type: integer }
+        employeeName: { type: string }
+        date: { type: string }
+        cutoff: { type: string, enum: ["12:00", "16:30"] }
+        requestedUntil: { type: string }
+        reason: { type: string }
+        status: { type: string, enum: [pending, approved, rejected] }
+        createdAt: { type: string }
+    OvertimeRequestInput:
+      type: object
+      required: [employeeId, date, cutoff, requestedUntil, reason]
+      properties:
+        employeeId: { type: integer }
+        date: { type: string }
+        cutoff: { type: string, enum: ["12:00", "16:30"] }
+        requestedUntil: { type: string }
+        reason: { type: string }
+    OvertimeDecision:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [approved, rejected] }
+    Dashboard:
+      type: object
+      required: [date, present, complete, open, overtimePending, scheduledHours, loggedHours, employees]
+      properties:
+        date: { type: string }
+        present: { type: integer }
+        complete: { type: integer }
+        open: { type: integer }
+        overtimePending: { type: integer }
+        scheduledHours: { type: number }
+        loggedHours: { type: number }
+        employees:
+          type: array
+          items:
+            $ref: "#/components/schemas/EmployeeDayStatus"
+    EmployeeDayStatus:
+      type: object
+      required: [employeeId, employeeName, status, startTime, endTime, totalHours]
+      properties:
+        employeeId: { type: integer }
+        employeeName: { type: string }
+        status: { type: string, enum: [complete, open, absent, pending] }
+        startTime: { type: ["string", "null"] }
+        endTime: { type: ["string", "null"] }
+        totalHours: { type: number }
+    Project:
+      type: object
+      required: [id, name, code, client, status]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        code: { type: string }
+        client: { type: string }
+        status: { type: string, enum: [active, archived] }
 

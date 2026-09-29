@@ -1,6 +1,6 @@
-# [Project name]
+# Tijdvast
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Een urenregistratie-app waarin medewerkers hun werkdag registreren en beheerders correcties en doorwerktoestemming beheren.
 
 ## Run & Operate
 
@@ -22,23 +22,30 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/urenregistratie/src/App.tsx` — medewerker-, beheerder- en instellingenervaring.
+- `artifacts/api-server/src/routes/time.ts` — registratie-, dashboard- en overwerklogica, inclusief automatische uitklok.
+- `lib/api-spec/openapi.yaml` — bron voor de urenregistratie-API.
+- `lib/db/src/schema/attendance.ts` — medewerkers, tijdregistraties en doorwerkverzoeken.
+- `lib/db/src/schema/projects.ts` — actieve projecten die medewerkers bij het inklokken kiezen.
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- De werkdag is 07:30–12:00 en 13:00–16:30; doorwerken na een cutoff vraagt vooraf goedkeuring.
+- Automatische uitklok wordt periodiek door de API toegepast en gemarkeerd met `autoClocked`, zodat een beheerder het verschil met een handmatige registratie ziet.
+- De eerste versie gebruikt een demo-profielwissel voor medewerker/beheerder; echte accountbeveiliging kan later via Clerk worden toegevoegd.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+Medewerkers kunnen een project kiezen en inklokken, pauze starten/eindigen, uitklokken en een doorwerkverzoek indienen. Beheerders zien de bezetting, het project per registratie, open registraties en verzoeken, kunnen verzoeken goedkeuren of afwijzen en tijdregistraties corrigeren.
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- De vaste werktijden zijn 07:30–12:00 en 13:00–16:30.
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Na wijzigingen aan `lib/api-spec/openapi.yaml` eerst `pnpm --filter @workspace/api-spec run codegen` uitvoeren.
+- De demo-seed is concurrency-safe; bij een nieuwe lege database worden alleen vier voorbeeldmedewerkers en enkele voorbeeldregistraties aangemaakt.
 
 ## Pointers
 

@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Urenregistratie"
+description = "Een webapp voor medewerkers om werktijden te registreren en voor beheerders om uren, correcties en uitzonderingen na 12:00 of 16:30 te beheren."
+version = "1.0.0"
+id = "artifacts/urenregistratie"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22127
+
+[services.development]
+run = "pnpm --filter @workspace/urenregistratie run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/urenregistratie", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/urenregistratie/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22127"
+BASE_PATH = "/"
