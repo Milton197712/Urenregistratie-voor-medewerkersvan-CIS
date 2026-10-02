@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { EmployeeAccountStatus } from './employeeAccountStatus';
 
 export interface Employee {
   id: number;
@@ -12,4 +13,8 @@ export interface Employee {
   role: string;
   initials: string;
   department: string;
+  /** @nullable */
+  email: string | null;
+  isAdmin: boolean;
+  accountStatus: EmployeeAccountStatus;
 }

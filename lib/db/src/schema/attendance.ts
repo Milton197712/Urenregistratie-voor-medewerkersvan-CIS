@@ -6,6 +6,9 @@ export const employeesTable = pgTable("employees", {
   role: text("role").notNull(),
   initials: text("initials").notNull(),
   department: text("department").notNull(),
+  email: text("email").unique(),
+  clerkUserId: text("clerk_user_id").unique(),
+  isAdmin: boolean("is_admin").notNull().default(false),
 });
 
 export const timeEntriesTable = pgTable("time_entries", {

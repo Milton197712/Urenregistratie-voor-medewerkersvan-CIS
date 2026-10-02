@@ -16,6 +16,8 @@ tags:
     description: Employee operations
   - name: projects
     description: Project operations
+  - name: auth
+    description: Authenticated account operations
 paths:
   /healthz:
     get:
@@ -42,6 +44,22 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Dashboard"
+  /auth/me:
+    get:
+      operationId: getCurrentUser
+      tags: [auth]
+      summary: Get the authenticated employee profile
+      responses:
+        "200":
+          description: Current account and employee profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSession"
+        "401":
+          description: Sign-in required
+        "403":
+          description: Account has not been invited
   /employees:
     get:
       operationId: listEmployees
@@ -56,6 +74,28 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Employee"
+  /employees/invitations:
+    post:
+      operationId: inviteEmployee
+      tags: [employees]
+      summary: Invite an employee to join the time-registration app
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmployeeInvitationInput"
+      responses:
+        "201":
+          description: Invitation sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Employee"
+        "400":
+          description: Invalid invitation details
+        "403":
+          description: Administrator access required
   /projects:
     get:
       operationId: listProjects
@@ -202,13 +242,32 @@ components:
         - status
     Employee:
       type: object
-      required: [id, name, role, initials, department]
+      required: [id, name, role, initials, department, email, isAdmin, accountStatus]
       properties:
         id: { type: integer }
         name: { type: string }
         role: { type: string }
         initials: { type: string }
         department: { type: string }
+        email: { type: ["string", "null"] }
+        isAdmin: { type: boolean }
+        accountStatus: { type: string, enum: [active, invited, unlinked] }
+    AuthSession:
+      type: object
+      required: [employee, isAdmin]
+      properties:
+        employee:
+          $ref: "#/components/schemas/Employee"
+        isAdmin:
+          type: boolean
+    EmployeeInvitationInput:
+      type: object
+      required: [email, name, department]
+      properties:
+        email: { type: string, format: email }
+        name: { type: string, minLength: 1 }
+        department: { type: string, minLength: 1 }
+        employeeId: { type: integer }
     TimeEntry:
       type: object
       required: [id, employeeId, employeeName, date, startTime, breakStart, breakEnd, endTime, status, totalHours, projectId, projectName]

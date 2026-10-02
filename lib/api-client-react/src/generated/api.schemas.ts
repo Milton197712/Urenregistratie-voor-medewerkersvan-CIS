@@ -9,12 +9,39 @@ export interface HealthStatus {
   status: string;
 }
 
+export type EmployeeAccountStatus = typeof EmployeeAccountStatus[keyof typeof EmployeeAccountStatus];
+
+
+export const EmployeeAccountStatus = {
+  active: 'active',
+  invited: 'invited',
+  unlinked: 'unlinked',
+} as const;
+
 export interface Employee {
   id: number;
   name: string;
   role: string;
   initials: string;
   department: string;
+  /** @nullable */
+  email: string | null;
+  isAdmin: boolean;
+  accountStatus: EmployeeAccountStatus;
+}
+
+export interface AuthSession {
+  employee: Employee;
+  isAdmin: boolean;
+}
+
+export interface EmployeeInvitationInput {
+  email: string;
+  /** @minLength 1 */
+  name: string;
+  /** @minLength 1 */
+  department: string;
+  employeeId?: number;
 }
 
 export type TimeEntryStatus = typeof TimeEntryStatus[keyof typeof TimeEntryStatus];

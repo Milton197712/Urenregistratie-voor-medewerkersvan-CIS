@@ -40,6 +40,24 @@ export const GetDashboardResponse = zod.object({
 
 
 /**
+ * @summary Get the authenticated employee profile
+ */
+export const GetCurrentUserResponse = zod.object({
+  "employee": zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "role": zod.string(),
+  "initials": zod.string(),
+  "department": zod.string(),
+  "email": zod.string().nullable(),
+  "isAdmin": zod.boolean(),
+  "accountStatus": zod.enum(['active', 'invited', 'unlinked'])
+}),
+  "isAdmin": zod.boolean()
+})
+
+
+/**
  * @summary List employees
  */
 export const ListEmployeesResponseItem = zod.object({
@@ -47,9 +65,38 @@ export const ListEmployeesResponseItem = zod.object({
   "name": zod.string(),
   "role": zod.string(),
   "initials": zod.string(),
-  "department": zod.string()
+  "department": zod.string(),
+  "email": zod.string().nullable(),
+  "isAdmin": zod.boolean(),
+  "accountStatus": zod.enum(['active', 'invited', 'unlinked'])
 })
 export const ListEmployeesResponse = zod.array(ListEmployeesResponseItem)
+
+
+/**
+ * @summary Invite an employee to join the time-registration app
+ */
+
+
+
+
+export const InviteEmployeeBody = zod.object({
+  "email": zod.string().email(),
+  "name": zod.string().min(1),
+  "department": zod.string().min(1),
+  "employeeId": zod.number().int().optional()
+})
+
+export const InviteEmployeeResponse = zod.object({
+  "id": zod.number().int(),
+  "name": zod.string(),
+  "role": zod.string(),
+  "initials": zod.string(),
+  "department": zod.string(),
+  "email": zod.string().nullable(),
+  "isAdmin": zod.boolean(),
+  "accountStatus": zod.enum(['active', 'invited', 'unlinked'])
+})
 
 
 /**

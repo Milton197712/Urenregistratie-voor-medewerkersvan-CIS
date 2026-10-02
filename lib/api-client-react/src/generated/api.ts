@@ -20,8 +20,10 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AuthSession,
   Dashboard,
   Employee,
+  EmployeeInvitationInput,
   HealthStatus,
   ListTimeEntriesParams,
   OvertimeDecision,
@@ -215,6 +217,83 @@ export function useGetDashboard<TData = Awaited<ReturnType<typeof getDashboard>>
 
 
 
+export const getGetCurrentUserUrl = () => {
+
+
+
+
+  return `/api/auth/me`
+}
+
+/**
+ * @summary Get the authenticated employee profile
+ */
+export const getCurrentUser = async ( options?: Parameters<typeof customFetch>[1]): Promise<AuthSession> => {
+
+  return customFetch<AuthSession>(getGetCurrentUserUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCurrentUserQueryKey = () => {
+    return [
+    `/api/auth/me`
+    ] as const;
+    }
+
+
+export const getGetCurrentUserQueryOptions = <TData = Awaited<ReturnType<typeof getCurrentUser>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCurrentUser>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCurrentUserQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCurrentUser>>> = ({ signal }) => getCurrentUser({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCurrentUser>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCurrentUserQueryResult = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>
+export type GetCurrentUserQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get the authenticated employee profile
+ */
+
+export function useGetCurrentUser<TData = Awaited<ReturnType<typeof getCurrentUser>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCurrentUser>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCurrentUserQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getListEmployeesUrl = () => {
 
 
@@ -291,6 +370,94 @@ export function useListEmployees<TData = Awaited<ReturnType<typeof listEmployees
 
 
 
+
+export const getInviteEmployeeUrl = () => {
+
+
+
+
+  return `/api/employees/invitations`
+}
+
+/**
+ * @summary Invite an employee to join the time-registration app
+ */
+export const inviteEmployee = async (employeeInvitationInput: EmployeeInvitationInput, options?: Parameters<typeof customFetch>[1]): Promise<Employee> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Employee>(getInviteEmployeeUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(employeeInvitationInput)
+  }
+);}
+
+
+
+
+
+export const getInviteEmployeeMutationKey = () => ['inviteEmployee'] as const;
+
+export const getInviteEmployeeMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof inviteEmployee>>, TError,InviteEmployeeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof inviteEmployee>>, TError,InviteEmployeeMutationVariables, TContext> => {
+
+const mutationKey = getInviteEmployeeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof inviteEmployee>>, InviteEmployeeMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  inviteEmployee(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type InviteEmployeeMutationResult = NonNullable<Awaited<ReturnType<typeof inviteEmployee>>>
+    export type InviteEmployeeMutationBody = BodyType<EmployeeInvitationInput>
+    export type InviteEmployeeMutationError = ErrorType<void>
+    export type InviteEmployeeMutationVariables = {data: BodyType<EmployeeInvitationInput>}
+
+    /**
+ * @summary Invite an employee to join the time-registration app
+ */
+export const useInviteEmployee = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof inviteEmployee>>, TError,InviteEmployeeMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof inviteEmployee>>,
+        TError,
+        InviteEmployeeMutationVariables,
+        TContext
+      > => {
+      return useMutation(getInviteEmployeeMutationOptions(options));
+    }
 
 export const getListProjectsUrl = () => {
 

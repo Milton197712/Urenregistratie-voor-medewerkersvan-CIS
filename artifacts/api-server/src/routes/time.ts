@@ -10,7 +10,6 @@ import {
   DecideOvertimeRequestParams,
   DecideOvertimeRequestResponse,
   GetDashboardResponse,
-  ListEmployeesResponse,
   ListOvertimeRequestsResponse,
   ListProjectsResponse,
   ListTimeEntriesQueryParams,
@@ -19,10 +18,12 @@ import {
   UpdateTimeEntryParams,
   UpdateTimeEntryResponse,
 } from "@workspace/api-zod";
+import { requireAdmin, requireAppUser } from "../middlewares/auth";
 
 const router: IRouter = Router();
 const SCHEDULED_HOURS = 8;
 let seedPromise: Promise<Employee[]> | null = null;
+router.use(requireAppUser);
 
 function today() {
   return new Date().toISOString().slice(0, 10);
@@ -58,25 +59,7 @@ async function seedOnce(): Promise<Employee[]> {
     ]);
   }
   const employees = await db.select().from(employeesTable).orderBy(asc(employeesTable.id));
-  if (employees.length > 0) return employees;
-
-  const createdEmployees = await db.insert(employeesTable).values([
-    { name: "Sofia Mendoza", role: "Medewerker", initials: "SM", department: "Operatie" },
-    { name: "Ravi Kumar", role: "Medewerker", initials: "RK", department: "Magazijn" },
-    { name: "Elena van Dijk", role: "Medewerker", initials: "EV", department: "Planning" },
-    { name: "Tomás Herrera", role: "Teamleider", initials: "TH", department: "Operatie" },
-  ]).returning();
-  const date = today();
-  const projects = await db.select().from(projectsTable).orderBy(asc(projectsTable.id));
-  await db.insert(timeEntriesTable).values([
-    { employeeId: createdEmployees[0].id, projectId: projects[0]?.id, date, startTime: "07:28", breakStart: "12:00", breakEnd: "13:00", endTime: "16:30", status: "complete", totalHours: "8.03", autoClocked: true, note: "Automatisch uitgeklokt om 16:30" },
-    { employeeId: createdEmployees[1].id, projectId: projects[1]?.id, date, startTime: "07:42", breakStart: "12:00", breakEnd: null, endTime: null, status: "open", totalHours: "4.3", autoClocked: true, note: "Pauze automatisch gestart om 12:00" },
-  ]);
-  await db.insert(overtimeRequestsTable).values([
-    { employeeId: createdEmployees[1].id, date, cutoff: "16:30", requestedUntil: "17:30", reason: "Voorraadcontrole afronden", status: "pending" },
-    { employeeId: createdEmployees[2].id, date, cutoff: "12:00", requestedUntil: "12:45", reason: "Klantoverdracht afronden", status: "approved" },
-  ]);
-  return createdEmployees;
+  return employees;
 }
 
 async function withNames<T extends { employeeId: number }>(rows: T[]) {
@@ -128,11 +111,6 @@ async function applyAutomaticClockOut() {
   }
 }
 
-router.get("/employees", async (_req, res): Promise<void> => {
-  const employees = await seed();
-  res.json(ListEmployeesResponse.parse(employees));
-});
-
 router.get("/projects", async (_req, res): Promise<void> => {
   await seed();
   const projects = await db.select().from(projectsTable).where(eq(projectsTable.status, "active")).orderBy(asc(projectsTable.name));
@@ -149,6 +127,9 @@ router.get("/time-entries", async (req, res): Promise<void> => {
   const filters = [];
   if (parsed.data.date) filters.push(eq(timeEntriesTable.date, parsed.data.date));
   if (parsed.data.employeeId) filters.push(eq(timeEntriesTable.employeeId, parsed.data.employeeId));
+  if (!req.employee?.isAdmin) {
+    filters.push(eq(timeEntriesTable.employeeId, req.employee!.id));
+  }
   const entries = await db.select().from(timeEntriesTable).where(filters.length ? and(...filters) : undefined).orderBy(desc(timeEntriesTable.date), asc(timeEntriesTable.startTime));
   const named = await withNames(entries);
   res.json(ListTimeEntriesResponse.parse(named.map((entry) => ({ ...entry, projectId: entry.projectId ?? null, projectName: entry.projectName ?? null, totalHours: Number(entry.totalHours), note: entry.note ?? null }))));
@@ -161,6 +142,10 @@ router.post("/time-entries", async (req, res): Promise<void> => {
     return;
   }
   const input = parsed.data;
+  if (input.employeeId !== req.employee!.id) {
+    res.status(403).json({ error: "Je kunt alleen je eigen werkdag registreren." });
+    return;
+  }
   const date = input.date;
   const time = input.time ?? currentClockTime();
   if (input.action === "clock_in" && !input.projectId) {
@@ -196,7 +181,7 @@ router.post("/time-entries", async (req, res): Promise<void> => {
   res.status(201).json(CreateTimeEntryResponse.parse({ ...named, projectId: named.projectId ?? null, projectName: named.projectName ?? null, totalHours: Number(named.totalHours), note: named.note ?? null }));
 });
 
-router.patch("/time-entries/:id", async (req, res): Promise<void> => {
+router.patch("/time-entries/:id", requireAdmin, async (req, res): Promise<void> => {
   const params = UpdateTimeEntryParams.safeParse(req.params);
   const parsed = UpdateTimeEntryBody.safeParse(req.body);
   if (!params.success || !parsed.success) {
@@ -214,8 +199,11 @@ router.patch("/time-entries/:id", async (req, res): Promise<void> => {
   res.json(UpdateTimeEntryResponse.parse({ ...named, projectId: named.projectId ?? null, projectName: named.projectName ?? null, totalHours: Number(named.totalHours), note: named.note ?? null }));
 });
 
-router.get("/overtime-requests", async (_req, res): Promise<void> => {
-  const requests = await db.select().from(overtimeRequestsTable).orderBy(desc(overtimeRequestsTable.createdAt));
+router.get("/overtime-requests", async (req, res): Promise<void> => {
+  const employee = req.employee!;
+  const requests = await db.select().from(overtimeRequestsTable)
+    .where(employee.isAdmin ? undefined : eq(overtimeRequestsTable.employeeId, employee.id))
+    .orderBy(desc(overtimeRequestsTable.createdAt));
   const named = await withNames(requests);
   res.json(ListOvertimeRequestsResponse.parse(named.map((request) => ({ ...request, createdAt: request.createdAt.toISOString() }))));
 });
@@ -226,12 +214,16 @@ router.post("/overtime-requests", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  if (parsed.data.employeeId !== req.employee!.id) {
+    res.status(403).json({ error: "Je kunt alleen voor jezelf overuren aanvragen." });
+    return;
+  }
   const [request] = await db.insert(overtimeRequestsTable).values({ ...parsed.data, status: "pending" }).returning();
   const [named] = await withNames([request]);
   res.status(201).json(CreateOvertimeRequestResponse.parse({ ...named, createdAt: named.createdAt.toISOString() }));
 });
 
-router.patch("/overtime-requests/:id/decision", async (req, res): Promise<void> => {
+router.patch("/overtime-requests/:id/decision", requireAdmin, async (req, res): Promise<void> => {
   const params = DecideOvertimeRequestParams.safeParse(req.params);
   const parsed = DecideOvertimeRequestBody.safeParse(req.body);
   if (!params.success || !parsed.success) {
@@ -247,7 +239,7 @@ router.patch("/overtime-requests/:id/decision", async (req, res): Promise<void> 
   res.json(DecideOvertimeRequestResponse.parse({ ...named, createdAt: named.createdAt.toISOString() }));
 });
 
-router.get("/dashboard", async (_req, res): Promise<void> => {
+router.get("/dashboard", requireAdmin, async (_req, res): Promise<void> => {
   await applyAutomaticClockOut();
   const employees = await seed();
   const entries = await db.select().from(timeEntriesTable).where(eq(timeEntriesTable.date, today()));
