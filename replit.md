@@ -33,6 +33,7 @@ Een urenregistratie-app waarin medewerkers hun werkdag registreren en beheerders
 - De werkdag is 07:30–12:00 en 13:00–16:30; doorwerken na een cutoff vraagt vooraf goedkeuring.
 - Automatische uitklok wordt periodiek door de API toegepast en gemarkeerd met `autoClocked`, zodat een beheerder het verschil met een handmatige registratie ziet.
 - De eerste versie gebruikt een demo-profielwissel voor medewerker/beheerder; echte accountbeveiliging kan later via Clerk worden toegevoegd.
+- De webapp is als PWA installeerbaar op mobiel en desktop, met een service worker voor de app-shell; live uren en API-data blijven netwerkafhankelijk.
 
 ## Product
 

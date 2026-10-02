@@ -25,6 +25,7 @@ import {
   CircleAlert,
   Clock3,
   Coffee,
+  Download,
   LayoutDashboard,
   LogIn,
   LogOut,
@@ -89,6 +90,52 @@ function QueryState({ loading, error, onRetry, children }: { loading?: boolean; 
   return <>{children}</>;
 }
 
+interface BeforeInstallPromptEvent extends Event {
+  readonly platforms: string[];
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
+}
+
+function InstallAppButton() {
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [installed, setInstalled] = useState(false);
+
+  useEffect(() => {
+    const standalone = window.matchMedia('(display-mode: standalone)').matches;
+    if (standalone) setInstalled(true);
+
+    const handleBeforeInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      setInstallPrompt(event as BeforeInstallPromptEvent);
+    };
+    const handleInstalled = () => {
+      setInstalled(true);
+      setInstallPrompt(null);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleInstalled);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleInstalled);
+    };
+  }, []);
+
+  if (installed || !installPrompt) return null;
+
+  return <button
+    data-testid="button-install-app"
+    aria-label="Installeer Tijdvast"
+    onClick={() => {
+      void installPrompt.prompt().then(() => installPrompt.userChoice).then(() => setInstallPrompt(null));
+    }}
+    className="inline-flex items-center gap-2 rounded-lg border border-border px-2.5 py-2 text-xs font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground"
+  >
+    <Download className="h-3.5 w-3.5" />
+    <span className="hidden sm:inline">Installeer app</span>
+  </button>;
+}
+
 function Shell({ children, employee, roleMode, onRoleMode }: { children: ReactNode; employee: Employee; roleMode: 'employee' | 'admin'; onRoleMode: (role: 'employee' | 'admin') => void }) {
   const [location] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -103,7 +150,7 @@ function Shell({ children, employee, roleMode, onRoleMode }: { children: ReactNo
       <div className="mt-auto rounded-2xl border border-sidebar-border bg-sidebar-accent/50 p-3"><div className="flex items-center gap-3"><Avatar employee={employee} size="sm" /><div className="min-w-0"><div className="truncate text-sm font-semibold">{employee.name}</div><div className="text-[11px] text-sidebar-foreground/50">{employee.department}</div></div></div><button data-testid="button-switch-role-sidebar" onClick={() => onRoleMode(roleMode === 'admin' ? 'employee' : 'admin')} className="mt-3 flex w-full items-center justify-between rounded-lg border border-sidebar-border px-2.5 py-2 text-[11px] text-sidebar-foreground/65 hover:bg-sidebar-accent"><span>{roleMode === 'admin' ? 'Bekijk medewerker' : 'Demo: beheerder'}</span><ArrowRight className="h-3.5 w-3.5" /></button></div>
     </aside>
     {mobileOpen && <button aria-label="Sluit menu" data-testid="button-close-menu" onClick={() => setMobileOpen(false)} className="fixed inset-0 z-20 bg-[hsl(218_31%_18%/0.4)] lg:hidden" />}
-    <main className="lg:pl-[252px]"><header className="sticky top-0 z-10 flex h-[72px] items-center justify-between border-b border-border/80 bg-background/90 px-5 backdrop-blur-md sm:px-8"><div className="flex items-center gap-3"><button aria-label="Open menu" data-testid="button-open-menu" onClick={() => setMobileOpen(true)} className="rounded-lg p-2 hover:bg-secondary lg:hidden"><Menu className="h-5 w-5" /></button><div className="hidden text-xs text-muted-foreground sm:block">Donderdag · {todayLabel.split(' · ')[1] ?? todayLabel}</div><div className="flex items-center gap-2 text-xs font-medium text-muted-foreground sm:hidden"><span className="h-2 w-2 rounded-full bg-[hsl(168_31%_43%)]" />Vandaag</div></div><div className="flex items-center gap-3"><div className="hidden text-right sm:block"><div className="text-xs font-semibold">{roleMode === 'admin' ? 'Beheerder' : 'Medewerker'}</div><div className="text-[11px] text-muted-foreground">Demo-omgeving</div></div><Avatar employee={employee} size="sm" /></div></header>{children}</main>
+    <main className="lg:pl-[252px]"><header className="sticky top-0 z-10 flex h-[72px] items-center justify-between border-b border-border/80 bg-background/90 px-5 backdrop-blur-md sm:px-8"><div className="flex items-center gap-3"><button aria-label="Open menu" data-testid="button-open-menu" onClick={() => setMobileOpen(true)} className="rounded-lg p-2 hover:bg-secondary lg:hidden"><Menu className="h-5 w-5" /></button><div className="hidden text-xs text-muted-foreground sm:block">Donderdag · {todayLabel.split(' · ')[1] ?? todayLabel}</div><div className="flex items-center gap-2 text-xs font-medium text-muted-foreground sm:hidden"><span className="h-2 w-2 rounded-full bg-[hsl(168_31%_43%)]" />Vandaag</div></div><div className="flex items-center gap-3"><InstallAppButton /><div className="hidden text-right sm:block"><div className="text-xs font-semibold">{roleMode === 'admin' ? 'Beheerder' : 'Medewerker'}</div><div className="text-[11px] text-muted-foreground">Demo-omgeving</div></div><Avatar employee={employee} size="sm" /></div></header>{children}</main>
   </div>;
 }
 
